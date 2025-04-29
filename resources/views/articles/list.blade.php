@@ -20,6 +20,7 @@
                         <th class="px-6 py-3 text-left" width="60">#</th>
                         <th class="px-6 py-3 text-left">Title</th>
                         <th class="px-6 py-3 text-left">Author</th>
+                        <th class="px-6 py-3 text-left">Content</th>
                         <th class="px-6 py-3 text-left" width='180'>Created At</th>
                         <th class="px-6 py-3 text-center" width='180'>Action</th>
                     </tr>
@@ -31,20 +32,25 @@
                         <td class="px-6 py-3 text-left">{{$article->id}}</td>
                         <td class="px-6 py-3 text-left">{{$article->title}}</td>
                         <td class="px-6 py-3 text-left">{{$article->author}}</td>
+                        <td class="px-6 py-3 text-left">{{$article->text}}</td>
                         <td class="px-6 py-3 text-left">{{\Carbon\Carbon::parse($article->created_at)->format('d M,Y')}}</td>
                         <td class="px-6 py-3 text-center">
                             <div class="flex my-2">
                                 @can('Edit Articles')
+                                @if(auth()->user()->id === $article->user_id|| auth()->user()->hasRole('Admin')|| auth()->user()->hasRole('SuperAdmin'))
                             <a href="{{ route('articles.edit', $article->id) }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2 hover:bg-slate-600">
                                 Edit</a>
+                                @endif
                                 @endcan
 
                                 @can('Delete Articles')
+                                @if(auth()->user()->id === $article->user_id|| auth()->user()->hasRole('Admin')|| auth()->user()->hasRole('SuperAdmin'))
                             <form action="{{ route('articles.destroy', $article->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this article?');">
                                 @csrf
                                 @method('delete')
                                 <button type="submit" class="bg-red-700 text-sm rounded-md text-white px-3 py-2 hover:bg-red-500 ml-2">
                                 Delete</button>
+                                @endif
                                 @endcan
                             </form>
                         </td>

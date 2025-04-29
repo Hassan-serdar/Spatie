@@ -86,11 +86,11 @@ class RoleController extends Controller implements HasMiddleware
 
         if($request->permission){
             $role->syncPermissions($request->permission);
-            return redirect()->route('roles.index')->with('success','Roles added successfully.');
+            return redirect()->route('roles.index')->with('success','Roles Updated successfully.');
         }
         else {
             $role->syncPermissions([]);
-            return redirect()->route('roles.index')->with('success','Roles added successfully.');
+            return redirect()->route('roles.index')->with('success','Roles Updated successfully.');
 
         }
         return redirect()->route('roles.index')->with('error','Oops! Some thing goes wrong please try agsin later.');

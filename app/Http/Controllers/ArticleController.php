@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\Article;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 
 
 class ArticleController extends Controller implements HasMiddleware
 {
+    use AuthorizesRequests;
     public static function middleware(): array
     {
         return [
@@ -50,11 +53,12 @@ class ArticleController extends Controller implements HasMiddleware
             'text'=>'required',
             'author'=>'required|string|min:3|max:30'
         ]);
-
+        $userId=$request->user()->id;
         Article::create([
             'title'=>$validated['title'],
             'text'=>$validated['text'],
             'author'=>$validated['author'],
+            'user_id'=>$userId,
         ]);
         return redirect()->route('articles.index')->with('success','Articles added successfully');
 
@@ -74,9 +78,12 @@ class ArticleController extends Controller implements HasMiddleware
     public function edit(string $id)
     {
         $article=Article::findOrFail($id);
+
+        $this->authorize('update', $article);
         return view('articles.edit',[
             'article'=>$article,
         ]);
+
     }
 
     /**

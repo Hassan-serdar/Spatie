@@ -6,9 +6,20 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rule;
+use Illuminate\Routing\Controllers\HasMiddleware;
+use Illuminate\Routing\Controllers\Middleware;
 
-class UserController extends Controller
+
+class UserController extends Controller implements HasMiddleware
 {
+    public static function middleware(): array
+    {
+        return [
+            new Middleware('permission:View Users',only:['index']),
+            new Middleware('permission:Edit Users',only:['edit']),
+        ];
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -85,6 +96,9 @@ class UserController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+        $user=User::findOrFail($id);
+        $user->delete();
+        return redirect()->route('users.index')->with('success','Users Deleted successfully.');
+
     }
 }

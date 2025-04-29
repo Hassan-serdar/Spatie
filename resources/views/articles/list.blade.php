@@ -5,7 +5,9 @@
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
             {{ __('Articles') }}
         </h2>
+        @can('Create Articles')
         <a href="{{ route('articles.create') }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2">Create</a>
+        @endcan
     </div>
     </x-slot>
 
@@ -32,13 +34,18 @@
                         <td class="px-6 py-3 text-left">{{\Carbon\Carbon::parse($article->created_at)->format('d M,Y')}}</td>
                         <td class="px-6 py-3 text-center">
                             <div class="flex my-2">
+                                @can('Edit Articles')
                             <a href="{{ route('articles.edit', $article->id) }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2 hover:bg-slate-600">
                                 Edit</a>
+                                @endcan
+
+                                @can('Delete Articles')
                             <form action="{{ route('articles.destroy', $article->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this article?');">
                                 @csrf
                                 @method('delete')
                                 <button type="submit" class="bg-red-700 text-sm rounded-md text-white px-3 py-2 hover:bg-red-500 ml-2">
                                 Delete</button>
+                                @endcan
                             </form>
                         </td>
                             </div>

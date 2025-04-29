@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
+use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
@@ -49,10 +50,12 @@ class UserController extends Controller
     public function edit(string $id)
     {
         $user=User::findOrFail($id);
+        $hasRoles=$user->roles->pluck('name');
         $roles=Role::orderBy('name','ASC')->get();
         return view('users.edit',[
             'user'=>$user,
-            'roles'=>$roles
+            'roles'=>$roles,
+            'hasRoles'=>$hasRoles,
         ]);
 
     }
@@ -62,7 +65,19 @@ class UserController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        $user=User::findOrFail($id);
+        $validated=request()->validate([
+            'name'=>'required|min:3',
+            'email'=>[
+            'required',
+            'email',
+            Rule::unique('users')->ignore($id),
+            ],
+            ]);
+        $user->Update($validated);
+        $user->syncRoles($request->role);
+        return redirect()->route('users.index')->with('success','Users Updated successfully.');
+
     }
 
     /**

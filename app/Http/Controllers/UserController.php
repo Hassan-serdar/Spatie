@@ -17,6 +17,7 @@ class UserController extends Controller implements HasMiddleware
         return [
             new Middleware('permission:View Users',only:['index']),
             new Middleware('permission:Edit Users',only:['edit']),
+            new Middleware('permission:Delete Users',only:['destroy']),
         ];
     }
 
@@ -97,6 +98,9 @@ class UserController extends Controller implements HasMiddleware
     public function destroy(string $id)
     {
         $user=User::findOrFail($id);
+        if($user->hasRole('SuperAdmin')){
+            return redirect()->route('users.index')->with('error','You Can not delete this account.');
+        }
         $user->delete();
         return redirect()->route('users.index')->with('success','Users Deleted successfully.');
 

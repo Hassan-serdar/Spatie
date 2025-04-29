@@ -48,10 +48,10 @@ class RoleController extends Controller implements HasMiddleware
             foreach ($request->permission as $id) {
                 $role->givePermissionTo($id);
             }
-            return redirect()->route('roles.index')->with('success','Roles added successfully.');
+            return redirect()->route('roles.index')->with('success','Role added successfully.');
         }
          else {
-            return redirect()->route('roles.index')->with('error','Roles added successfully without any permissions.');
+            return redirect()->route('roles.index')->with('error','Role added successfully without any permissions.');
 
          }
     }

@@ -42,7 +42,7 @@ class RegisteredUserController extends Controller
         ]);
 
         event(new Registered($user));
-
+        $user->assignRole('writer');
         Auth::login($user);
 
         return redirect(route('dashboard', absolute: false));

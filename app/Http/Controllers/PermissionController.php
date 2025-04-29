@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 use Spatie\Permission\Models\Permission;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Validation\ValidationException;
+
 
 class PermissionController extends Controller implements HasMiddleware
 {
@@ -38,25 +40,24 @@ class PermissionController extends Controller implements HasMiddleware
 
     public function store(Request $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|min:3|max:30|unique:permissions',
-        ]);
         try {
+            $validated = $request->validate([
+                'name' => 'required|string|min:3|max:30|unique:permissions',
+            ]);
     
-        
             Permission::create([
                 'name' => $validated['name'],
             ]);
             return redirect()->route('permissions.index')->with('success', 'Permission created successfully.');
+        } catch (ValidationException $e) {
+            Log::error('Validation failed while creating permission: ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
             Log::error('Failed to create permission: ' . $e->getMessage());
-            Log::error('Request data: ', $request->all());
-        
-            return redirect()->back()->withErrors($e->getMessage())->withInput();
+            Log::error('Request data: ' . json_encode($request->all()));
+            return redirect()->back()->with('error', 'Something went wrong while creating the permission.')->withInput();
         }
     }
-    
-    //this for show  an edit permission page 
     public function edit($id){
         $permission=Permission::findOrFail($id);
         return view('permissions.edit',[
@@ -65,40 +66,46 @@ class PermissionController extends Controller implements HasMiddleware
 
 
     }
-
     //this for update a permission in db 
-public function update($id, Request $request)
-{
-    $validated = $request->validate([
-        'name' => [
-            'required',
-            'string',
-            'min:3',
-            'max:30',
-            Rule::unique('permissions')->ignore($id),
-        ],
-    ]);
-    try {
-        $permission = Permission::findOrFail($id);
-        $permission->name = $validated['name'];
-        $permission->save();
-
-        return redirect()->route('permissions.index')->with('success', 'Permission Updated successfully.');
-
-    } catch (\Exception $e) {
-        Log::error('Error updating permission: ' . $e->getMessage(), [
-            'id' => $id,
-            'stack' => $e->getTraceAsString(),
-        ]);
-
-        return redirect()->route('permissions.index')->with('error','Something went wrong while updating the permission.');
+    public function update($id, Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'name' => [
+                    'required',
+                    'string',
+                    'min:3',
+                    'max:30',
+                    Rule::unique('permissions')->ignore($id),
+                ],
+            ]);
+    
+            $permission = Permission::findOrFail($id);
+            $permission->name = $validated['name'];
+            $permission->save();
+    
+            return redirect()->route('permissions.index')->with('success', 'Permission Updated successfully.');
+        } catch (ValidationException $e) {
+            Log::error('Validation failed while updating permission (ID: ' . $id . '): ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Error updating permission: ' . $e->getMessage(), [
+                'id' => $id,
+                'stack' => $e->getTraceAsString(),
+            ]);
+            return redirect()->route('permissions.index')->with('error','Something went wrong while updating the permission.');
+        }
     }
-}
-    //this for delete permission from db  
-    public function destroy($id){
-        $permission=Permission::findOrFail($id);
-        $permission->delete();
-        return redirect()->route('permissions.index')->with('success','Permission Deleted successfully');
-    }
-
+        //this for delete permission from db  
+        public function destroy($id){
+            try {
+                $permission = Permission::findOrFail($id);
+                $permission->delete();
+                return redirect()->route('permissions.index')->with('success','Permission Deleted successfully');
+            } catch (\Exception $e) {
+                Log::error('Failed to delete permission (ID: ' . $id . '): ' . $e->getMessage());
+                return redirect()->route('permissions.index')->with('error', 'Failed to delete permission.');
+            }
+        }
+        
 }

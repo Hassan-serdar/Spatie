@@ -9,6 +9,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Routing\Controllers\Middleware;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
+
 
 
 class ArticleController extends Controller implements HasMiddleware
@@ -48,22 +51,31 @@ class ArticleController extends Controller implements HasMiddleware
      */
     public function store(Request $request)
     {
-        $validated=request()->validate([
-            'title'=>'required|min:3|max:60',
-            'text'=>'required',
-            'author'=>'required|string|min:3|max:30'
-        ]);
-        $userId=$request->user()->id;
-        Article::create([
-            'title'=>$validated['title'],
-            'text'=>$validated['text'],
-            'author'=>$validated['author'],
-            'user_id'=>$userId,
-        ]);
-        return redirect()->route('articles.index')->with('success','Articles added successfully');
-
+        try {
+            $validated = request()->validate([
+                'title' => 'required|min:3|max:60',
+                'text' => 'required',
+                'author' => 'required|string|min:3|max:30'
+            ]);
+    
+            $userId = $request->user()->id;
+            Article::create([
+                'title' => $validated['title'],
+                'text' => $validated['text'],
+                'author' => $validated['author'],
+                'user_id' => $userId,
+            ]);
+    
+            return redirect()->route('articles.index')->with('success','Articles added successfully');
+        } catch (ValidationException $e) {
+            Log::error('Validation failed while creating article: ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Failed to create article: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Something went wrong while creating the article.')->withInput();
+        }
     }
-
+    
     /**
      * Display the specified resource.
      */
@@ -91,27 +103,40 @@ class ArticleController extends Controller implements HasMiddleware
      */
     public function update(Request $request, string $id)
     {
-        $article=Article::findOrFail($id);
-        $validated=request()->validate([
-            'title'=>'required|regex:/[a-zA-Z\s]+/|min:3|max:60',
-            'text'=>'required',
-            'author'=>'required|string|min:3|max:30',
-            Rule::unique('articles')->ignore($id),
-        ]);
-        $article->update($validated);
-        return redirect()->route('articles.index')->with('success', 'Article Updated successfully.');
-
-
+        try {
+            $article = Article::findOrFail($id);
+    
+            $validated = request()->validate([
+                'title' => 'required|regex:/[a-zA-Z\s]+/|min:3|max:60',
+                'text' => 'required',
+                'author' => 'required|string|min:3|max:30',
+                Rule::unique('articles')->ignore($id),
+            ]);
+    
+            $article->update($validated);
+    
+            return redirect()->route('articles.index')->with('success', 'Article Updated successfully.');
+        } catch (ValidationException $e) {
+            Log::error('Validation failed while updating article (ID: ' . $id . '): ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Failed to update article (ID: ' . $id . '): ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Something went wrong while updating the article.')->withInput();
+        }
     }
-
+    
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
-        $article=Article::findOrFail($id);
-        $article->delete();
-        return redirect()->route('articles.index')->with('success','Article Deleted successfully');
-
+        try {
+            $article = Article::findOrFail($id);
+            $article->delete();
+            return redirect()->route('articles.index')->with('success','Article Deleted successfully');
+        } catch (\Exception $e) {
+            Log::error('Failed to delete article (ID: ' . $id . '): ' . $e->getMessage());
+            return redirect()->route('articles.index')->with('error', 'Failed to delete article.');
+        }
     }
-}
+    }

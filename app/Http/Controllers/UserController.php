@@ -8,6 +8,7 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rule;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Log;
 
 
 class UserController extends Controller implements HasMiddleware
@@ -15,10 +16,10 @@ class UserController extends Controller implements HasMiddleware
     public static function middleware(): array
     {
         return [
-            new Middleware('permission:View Users',only:['index']),
-            new Middleware('permission:Edit Users',only:['edit']),
-            new Middleware('permission:Create Users',only:['create']),
-            new Middleware('permission:Delete Users',only:['destroy']),
+            new Middleware('permission:View Users', only: ['index']),
+            new Middleware('permission:Edit Users', only: ['edit']),
+            new Middleware('permission:Create Users', only: ['create']),
+            new Middleware('permission:Delete Users', only: ['destroy']),
         ];
     }
 
@@ -27,10 +28,15 @@ class UserController extends Controller implements HasMiddleware
      */
     public function index()
     {
-        $users=User::latest()->paginate(10);
-        return view('users.list',[
-            'users'=>$users
-        ]);
+        try {
+            $users = User::latest()->paginate(10);
+            return view('users.list', [
+                'users' => $users
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during return list users view' . $e->getMessage());
+            return redirect()->route('/')->with('error', 'Failed to fetch users.');
+        }
     }
 
     /**
@@ -38,10 +44,15 @@ class UserController extends Controller implements HasMiddleware
      */
     public function create()
     {
-        $roles=Role::orderBy('name','ASC')->get();
-        return view('users.create',[
-            'roles'=>$roles,
-        ]);
+        try {
+            $roles = Role::orderBy('name', 'ASC')->get();
+            return view('users.create', [
+                'roles' => $roles,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during return create users view' . $e->getMessage());
+            return redirect()->route('users.index')->with('error', 'Failed to load create form.');
+        }
     }
 
     /**
@@ -49,28 +60,37 @@ class UserController extends Controller implements HasMiddleware
      */
     public function store(Request $request)
     {
-        $validated=request()->validate([
-            'name'=>'required|min:3',
-            'email'=>[
-            'required',
-            'email',
-            Rule::unique('users'),
-            ],
-            'password'=>'required|min:5|confirmed',
-            'role' => 'required|array',
-            'role.*' => 'string|exists:roles,name',
+        try {
+            $validated = $request->validate([
+                'name' => 'required|min:3',
+                'email' => [
+                    'required',
+                    'email',
+                    Rule::unique('users'),
+                ],
+                'password' => 'required|min:5|confirmed',
+                'role' => 'required|array',
+                'role.*' => 'string|exists:roles,name',
             ]);
+    
             $user = User::create([
                 'name' => $validated['name'],
                 'email' => $validated['email'],
                 'password' => bcrypt($validated['password']),
             ]);
+    
             $user->assignRole($validated['role']);
+    
             return redirect()->route('users.index')->with('success', 'Users Created successfully');
-
-
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed while creating user: ' .($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during user creation: ' . $e->getMessage());
+            return redirect()->route('users.create')->with('error', 'Failed to create user.');
+        }
     }
-
+    
     /**
      * Display the specified resource.
      */
@@ -84,15 +104,19 @@ class UserController extends Controller implements HasMiddleware
      */
     public function edit(string $id)
     {
-        $user=User::findOrFail($id);
-        $hasRoles=$user->roles->pluck('name');
-        $roles=Role::orderBy('name','ASC')->get();
-        return view('users.edit',[
-            'user'=>$user,
-            'roles'=>$roles,
-            'hasRoles'=>$hasRoles,
-        ]);
-
+        try {
+            $user = User::findOrFail($id);
+            $hasRoles = $user->roles->pluck('name');
+            $roles = Role::orderBy('name', 'ASC')->get();
+            return view('users.edit', [
+                'user' => $user,
+                'roles' => $roles,
+                'hasRoles' => $hasRoles,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during user editing (ID: ' . $id . '): ' . $e->getMessage());
+            return redirect()->route('users.index')->with('error', 'Failed to load edit form.');
+        }
     }
 
     /**
@@ -100,32 +124,47 @@ class UserController extends Controller implements HasMiddleware
      */
     public function update(Request $request, string $id)
     {
-        $user=User::findOrFail($id);
-        $validated=request()->validate([
-            'name'=>'required|min:3',
-            'email'=>[
-            'required',
-            'email',
-            Rule::unique('users')->ignore($id),
-            ],
+        try {
+            $user = User::findOrFail($id);
+    
+            $validated = $request->validate([
+                'name' => 'required|min:3',
+                'email' => [
+                    'required',
+                    'email',
+                    Rule::unique('users')->ignore($id),
+                ],
             ]);
-        $user->Update($validated);
-        $user->syncRoles($request->role);
-        return redirect()->route('users.index')->with('success','Users Updated successfully.');
-
+    
+            $user->update($validated);
+            $user->syncRoles($request->role);
+    
+            return redirect()->route('users.index')->with('success', 'Users Updated successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Validation failed while updating user (ID: ' . $id . '): ' . json_encode($e->errors()));
+            return redirect()->back()->withErrors($e->errors())->withInput();
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during user update (ID: ' . $id . '): ' . $e->getMessage());
+            return redirect()->route('users.edit', $id)->with('error', 'Failed to update user.');
+        }
     }
+    
 
     /**
      * Remove the specified resource from storage.
      */
     public function destroy(string $id)
     {
-        $user=User::findOrFail($id);
-        if($user->hasRole('SuperAdmin')){
-            return redirect()->route('users.index')->with('error','You Can not delete this account.');
+        try {
+            $user = User::findOrFail($id);
+            if ($user->hasRole('SuperAdmin')) {
+                return redirect()->route('users.index')->with('error', 'You Can not delete this account.');
+            }
+            $user->delete();
+            return redirect()->route('users.index')->with('success', 'Users Deleted successfully.');
+        } catch (\Exception $e) {
+            Log::error('Unexpected error during user delete (ID: ' . $id . '): ' . $e->getMessage());
+            return redirect()->route('users.index')->with('error', 'Failed to delete user.');
         }
-        $user->delete();
-        return redirect()->route('users.index')->with('success','Users Deleted successfully.');
-
     }
 }

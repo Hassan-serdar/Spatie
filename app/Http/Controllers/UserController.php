@@ -17,6 +17,7 @@ class UserController extends Controller implements HasMiddleware
         return [
             new Middleware('permission:View Users',only:['index']),
             new Middleware('permission:Edit Users',only:['edit']),
+            new Middleware('permission:Create Users',only:['create']),
             new Middleware('permission:Delete Users',only:['destroy']),
         ];
     }
@@ -37,7 +38,10 @@ class UserController extends Controller implements HasMiddleware
      */
     public function create()
     {
-        //
+        $roles=Role::orderBy('name','ASC')->get();
+        return view('users.create',[
+            'roles'=>$roles,
+        ]);
     }
 
     /**
@@ -45,7 +49,26 @@ class UserController extends Controller implements HasMiddleware
      */
     public function store(Request $request)
     {
-        //
+        $validated=request()->validate([
+            'name'=>'required|min:3',
+            'email'=>[
+            'required',
+            'email',
+            Rule::unique('users'),
+            ],
+            'password'=>'required|min:5|confirmed',
+            'role' => 'required|array',
+            'role.*' => 'string|exists:roles,name',
+            ]);
+            $user = User::create([
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'password' => bcrypt($validated['password']),
+            ]);
+            $user->assignRole($validated['role']);
+            return redirect()->route('users.index')->with('success', 'Users Created successfully');
+
+
     }
 
     /**

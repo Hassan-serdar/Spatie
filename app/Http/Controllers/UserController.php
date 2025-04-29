@@ -8,6 +8,7 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Validation\Rule;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 
 
@@ -45,7 +46,7 @@ class UserController extends Controller implements HasMiddleware
     public function create()
     {
         try {
-            $roles = Role::orderBy('name', 'ASC')->get();
+            $roles = Role::where('name', '!=', 'SuperAdmin')->orderBy('name', 'ASC')->get();
             return view('users.create', [
                 'roles' => $roles,
             ]);
@@ -69,7 +70,7 @@ class UserController extends Controller implements HasMiddleware
                     Rule::unique('users'),
                 ],
                 'password' => 'required|min:5|confirmed',
-                'role' => 'required|array',
+                'role' => 'array',
                 'role.*' => 'string|exists:roles,name',
             ]);
     
@@ -78,15 +79,18 @@ class UserController extends Controller implements HasMiddleware
                 'email' => $validated['email'],
                 'password' => bcrypt($validated['password']),
             ]);
-    
-            $user->assignRole($validated['role']);
-    
-            return redirect()->route('users.index')->with('success', 'Users Created successfully');
+            if (in_array('SuperAdmin', $request->input('role', []))) {
+                return back()->withErrors(['error' => 'You can not assign this role.']);
+            }
+            if (!empty($validated['role'] ?? null)) {
+                $user->assignRole($validated['role']);
+            }
+             return redirect()->route('users.index')->with('success', 'Users Created successfully');
         } catch (\Illuminate\Validation\ValidationException $e) {
-            Log::error('Validation failed while creating user: ' .($e->errors()));
+            Log::error('Validation failed while creating user: ' .json_encode($e->errors()));
             return redirect()->back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
-            Log::error('Unexpected error during user creation: ' . $e->getMessage());
+            Log::error('Unexpected error during user creation: ' . json_encode($e->getMessage()));
             return redirect()->route('users.create')->with('error', 'Failed to create user.');
         }
     }
@@ -107,14 +111,20 @@ class UserController extends Controller implements HasMiddleware
         try {
             $user = User::findOrFail($id);
             $hasRoles = $user->roles->pluck('name');
-            $roles = Role::orderBy('name', 'ASC')->get();
+            $currentUser=Auth()->user();
+            if($currentUser->hasRole('SuperAdmin')){
+                $roles = Role::orderBy('name', 'ASC')->get();
+            }
+            else{
+            $roles = Role::where('name', '!=', 'SuperAdmin')->orderBy('name', 'ASC')->get();
+            }
             return view('users.edit', [
                 'user' => $user,
                 'roles' => $roles,
                 'hasRoles' => $hasRoles,
             ]);
         } catch (\Exception $e) {
-            Log::error('Unexpected error during user editing (ID: ' . $id . '): ' . $e->getMessage());
+            Log::error('Unexpected error during user editing (ID: ' . $id . '): ' . json_encode($e->getMessage()));
             return redirect()->route('users.index')->with('error', 'Failed to load edit form.');
         }
     }
@@ -126,7 +136,7 @@ class UserController extends Controller implements HasMiddleware
     {
         try {
             $user = User::findOrFail($id);
-    
+            $currentUser=Auth()->user();
             $validated = $request->validate([
                 'name' => 'required|min:3',
                 'email' => [
@@ -134,12 +144,16 @@ class UserController extends Controller implements HasMiddleware
                     'email',
                     Rule::unique('users')->ignore($id),
                 ],
+                'role' => 'required|array',
+                'role.*' => 'string|exists:roles,name',
             ]);
-    
+            if (($currentUser->hasRole('Admin') ||$currentUser->hasRole('writer') ) && $user->hasRole('SuperAdmin')) {
+                return back()->withErrors(['error' => 'You can not make that change']);
+            }
             $user->update($validated);
             $user->syncRoles($request->role);
     
-            return redirect()->route('users.index')->with('success', 'Users Updated successfully.');
+            return redirect()->route('users.index')->with('success', 'User Updated successfully.');
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed while updating user (ID: ' . $id . '): ' . json_encode($e->errors()));
             return redirect()->back()->withErrors($e->errors())->withInput();

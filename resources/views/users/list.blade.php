@@ -1,15 +1,13 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex justify-between">
-
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Users') }}
-        </h2>
-        @can('Create Users')
-        <a href="{{ route('users.create') }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2">Create</a>
-        @endcan
-
-    </div>
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Users') }}
+            </h2>
+            @can('Create Users')
+                <a href="{{ route('users.create') }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2">Create</a>
+            @endcan
+        </div>
     </x-slot>
 
     <div class="py-12">
@@ -29,33 +27,33 @@
                 </thead>
                 <tbody class="bg-white">
                     @if($users)
-                    @foreach ($users as $user)
-                    <tr>
-                        <td class="px-6 py-3 text-left">{{$user->id}}</td>
-                        <td class="px-6 py-3 text-left">{{$user->name}}</td>
-                        <td class="px-6 py-3 text-left">{{$user->email}}</td>
-                        <td class="px-6 py-3 text-left">{{$user->roles->pluck('name')->implode(', ')}}</td>
-                        <td class="px-6 py-3 text-left">{{\Carbon\Carbon::parse($user->created_at)->format('d M,Y')}}</td>
-                        <td class="px-6 py-3 text-center">
-                                <div class="flex my-2">
-                                    @can('Edit Users')
-                                <a href="{{ route('users.edit', $user->id) }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2 hover:bg-slate-600">
-                                    Edit</a>
-                                    @endcan
-                           @can('Delete Edit')
-                                <form action="{{ route('users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this role?');">
-                                    @csrf
-                                    @method('delete')
-                                    <button type="submit" class="bg-red-700 text-sm rounded-md text-white px-3 py-2 hover:bg-red-500 ml-2">
-                                    Delete</button>
-                                    @endcan
-                                </form>    
-                        </td>
-                                </div>  
-
-                    </tr>
- 
-                    @endforeach
+                        @foreach ($users as $user)
+                            <tr>
+                                <td class="px-6 py-3 text-left">{{$user->id}}</td>
+                                <td class="px-6 py-3 text-left">{{$user->name}}</td>
+                                <td class="px-6 py-3 text-left">{{$user->email}}</td>
+                                <td class="px-6 py-3 text-left">{{$user->roles->pluck('name')->implode(', ')}}</td>
+                                <td class="px-6 py-3 text-left">{{\Carbon\Carbon::parse($user->created_at)->format('d M,Y')}}</td>
+                                <td class="px-6 py-3 text-center">
+                                    <div class="flex my-2">
+                                        @can('Edit Users')
+                                            <a href="{{ route('users.edit', $user->id) }}" class="bg-slate-700 text-sm rounded-md text-white px-3 py-2 hover:bg-slate-600">
+                                                Edit
+                                            </a>
+                                        @endcan
+                                        @can('Delete Users')
+                                            <form action="{{ route('users.destroy', $user->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this role?');">
+                                                @csrf
+                                                @method('delete')
+                                                <button type="submit" class="bg-red-700 text-sm rounded-md text-white px-3 py-2 hover:bg-red-500 ml-2">
+                                                    Delete
+                                                </button>
+                                            </form>    
+                                        @endcan
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
                     @endif
                 </tbody>
             </table>
